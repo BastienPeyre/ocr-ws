@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocr-ws
+  labels:
+    app: ocr-ws
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ocr-ws
+  template:
+    metadata:
+      labels:
+        app: ocr-ws
+    spec:
+      containers:
+      - name: ocr-ws
+        image: ${REGISTRY_URL}/ocr-ws:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DJANGO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ocr-ws-secrets
+              key: django-secret-key
+        - name: DEBUG
+          value: "False"
+        - name: ALLOWED_HOSTS
+          value: "*"
+        - name: OCR_API_URL
+          valueFrom:
+            secretKeyRef:
+              name: ocr-ws-secrets
+              key: ocr-api-url
+        - name: OCR_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ocr-ws-secrets
+              key: ocr-api-key
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+        livenessProbe:
+          httpGet:
+            path: /api/ocr/
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/ocr/
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 5
+        volumeMounts:
+        - name: media-volume
+          mountPath: /app/media
+        - name: static-volume
+          mountPath: /app/staticfiles
+      volumes:
+      - name: media-volume
+        persistentVolumeClaim:
+          claimName: ocr-ws-media-pvc
+      - name: static-volume
+        persistentVolumeClaim:
+          claimName: ocr-ws-static-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ocr-ws-service
+spec:
+  selector:
+    app: ocr-ws
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ocr-ws-media-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ocr-ws-static-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ocr-ws-secrets
+type: Opaque
+data:
+  django-secret-key: ${BASE64_ENCODED_DJANGO_SECRET_KEY}
+  ocr-api-url: ${BASE64_ENCODED_OCR_API_URL}
+  ocr-api-key: ${BASE64_ENCODED_OCR_API_KEY}
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: ocr-ws-route
+spec:
+  to:
+    kind: Service
+    name: ocr-ws-service
+  port:
+    targetPort: 8000
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

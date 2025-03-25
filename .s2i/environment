@@ -1,0 +1,5 @@
+APP_CONFIG=ocr_ws.wsgi
+APP_MODULE=ocr_ws.wsgi:application
+UPGRADE_PIP_TO_LATEST=true
+PIP_INDEX_URL=https://pypi.org/simple
+DISABLE_COLLECTSTATIC=0

@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Usage : un script personnalisé pour exécuter l'application
+
+# Définir les variables par défaut si elles ne sont pas définies
+: ${APP_MODULE:="ocr_ws.wsgi:application"}
+: ${APP_CONFIG:="ocr_ws.wsgi"}
+: ${GUNICORN_WORKERS:="3"}
+: ${GUNICORN_THREADS:="1"}
+: ${GUNICORN_MAX_REQUESTS:="0"}
+: ${GUNICORN_TIMEOUT:="30"}
+: ${DJANGO_SETTINGS_MODULE:="ocr_ws.settings"}
+: ${DJANGO_PORT:="8000"}
+
+export DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
+
+echo "---> Starting application..."
+echo "     APP_MODULE: ${APP_MODULE}"
+echo "     GUNICORN CONFIG: workers=${GUNICORN_WORKERS} threads=${GUNICORN_THREADS} timeout=${GUNICORN_TIMEOUT} max-requests=${GUNICORN_MAX_REQUESTS}"
+echo "     DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE}"
+
+# Démarrer Gunicorn avec les paramètres appropriés pour OpenShift
+exec gunicorn ${APP_MODULE} \
+    --bind=0.0.0.0:${DJANGO_PORT} \
+    --workers=${GUNICORN_WORKERS} \
+    --threads=${GUNICORN_THREADS} \
+    --max-requests=${GUNICORN_MAX_REQUESTS} \
+    --timeout=${GUNICORN_TIMEOUT} \
+    --access-logfile=- \
+    --config="${APP_CONFIG}" \
+    --log-level=info
